@@ -1,3 +1,9 @@
+/**
+ * @Author: maple
+ * @Date: 2025-11-28 18:13:19
+ * @LastEditors: maple
+ * @LastEditTime: 2025-12-01 14:39:08
+ */
 const { contextBridge, ipcRenderer } = require('electron');
 
 // 安全地暴露 IPC 通信接口
@@ -20,8 +26,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 检查设置是否需要重启应用
   checkIfRestartRequired: (changedSettings) => ipcRenderer.invoke('check-restart-required', changedSettings),
   
-  // 保存设置并提示重启
-  saveAndPromptRestart: (settings) => ipcRenderer.invoke('save-and-prompt-restart', settings)
+  // 应用无需重启的设置
+  applyConfigWithoutRestart: () => ipcRenderer.invoke('apply-config-without-restart'),
+  
+  // 重启应用
+  restartApp: () => ipcRenderer.send('restart-app'),
+  
+  // 监听配置变更事件
+  onConfigChanged: (callback) => ipcRenderer.on('config-changed', callback)
 });
 
 // 添加调试日志

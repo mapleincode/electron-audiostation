@@ -1,3 +1,9 @@
+/**
+ * @Author: maple
+ * @Date: 2025-12-01 13:52:09
+ * @LastEditors: maple
+ * @LastEditTime: 2025-12-01 14:02:13
+ */
 const { contextBridge, ipcRenderer } = require('electron');
 
 // 安全地暴露 IPC 通信接口
@@ -5,6 +11,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 接收来自主进程的消息
   onEditConfig: (callback) => ipcRenderer.on('edit-config', callback),
   onOpenSettings: (callback) => ipcRenderer.on('open-settings', callback),
+  onConfigChanged: (callback) => ipcRenderer.on('config-changed', callback),
   
   // 发送消息到主进程
   saveConfig: (url) => ipcRenderer.send('save-config', url),
@@ -19,19 +26,29 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getCurrentUserAgent: () => navigator.userAgent
 });
 
+// 在preload脚本中直接设置事件监听器，而不是在DOMContentLoaded中
+// 这样可以确保electronAPI对象已完全初始化
+function setupEventListeners() {
+  if (window.electronAPI && typeof window.electronAPI.onEditConfig === 'function') {
+    window.electronAPI.onEditConfig((event) => {
+      console.log('收到编辑配置消息');
+      // 直接发送消息到主进程，不依赖于 DOM 事件
+      if (window.electronAPI && typeof window.electronAPI.requestEditConfig === 'function') {
+        window.electronAPI.requestEditConfig();
+      }
+    });
+  }
+}
+
+// 立即设置事件监听器
+setupEventListeners();
+
 // 注入自定义样式以改善 AudioStation 的桌面体验
 window.addEventListener('DOMContentLoaded', () => {
   // 创建样式元素
   const style = document.createElement('style');
   style.textContent = `
     /* 改善滚动条样式 */
-    ::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
-    }
-    ::-webkit-scrollbar-track {
-      background: rgba(0, 0, 0, 0.1);
-    }
     ::-webkit-scrollbar-thumb {
       background: rgba(0, 0, 0, 0.3);
       border-radius: 4px;
@@ -56,11 +73,4 @@ window.addEventListener('DOMContentLoaded', () => {
   
   // 添加到文档头部
   document.head.appendChild(style);
-
-  // 监听来自主进程的编辑配置消息
-  window.electronAPI.onEditConfig(() => {
-    console.log('收到编辑配置消息');
-    // 直接发送消息到主进程，不依赖于 DOM 事件
-    window.electronAPI.requestEditConfig();
-  });
 }); 

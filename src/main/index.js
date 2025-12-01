@@ -45,6 +45,33 @@ const SynologyAudioStationControlScript = {
   volumeDown: 'SYNO.SDS.AudioStation.Window.getPanelScope("SYNO.SDS.AudioStation.Main").audioPlayer.setVolume(Math.max(0, SYNO.SDS.AudioStation.Window.getPanelScope("SYNO.SDS.AudioStation.Main").audioPlayer.getVolume() - 5))'
 };
 
+// 全局函数，在showSettings中使用
+async function applySettingsWithoutRestart() {
+  log.info('应用无需重启的设置');
+  // 获取当前设置
+  const url = store.get('url', '');
+  const alwaysOnTop = store.get('alwaysOnTop', false);
+  const theme = store.get('theme', 'system');
+  
+  // 应用设置
+  if (url && mainWindow) {
+    mainWindow.loadURL(url);
+  }
+  
+  if (mainWindow) {
+    mainWindow.setAlwaysOnTop(alwaysOnTop);
+  }
+  
+  // 应用主题设置
+  if (theme !== 'system') {
+    nativeTheme.themeSource = theme;
+  } else {
+    nativeTheme.themeSource = 'system';
+  }
+  
+  return true;
+}
+
 // 全局变量
 let mainWindow;
 let tray;
@@ -129,32 +156,8 @@ if (!gotTheLock) {
     });
   }
 
-  // 应用不需要重启的设置
-  async function applySettingsWithoutRestart() {
-    log.info('应用无需重启的设置');
-    // 获取当前设置
-    const url = store.get('url', '');
-    const alwaysOnTop = store.get('alwaysOnTop', false);
-    const theme = store.get('theme', 'system');
-    
-    // 应用设置
-    if (url && mainWindow) {
-      mainWindow.loadURL(url);
-    }
-    
-    if (mainWindow) {
-      mainWindow.setAlwaysOnTop(alwaysOnTop);
-    }
-    
-    // 应用主题设置
-    if (theme !== 'system') {
-      nativeTheme.themeSource = theme;
-    } else {
-      nativeTheme.themeSource = 'system';
-    }
-    
-    return true;
-  }
+// 应用不需要重启的设置
+// 重启应用
 
   // 重启应用
   function restartApplication() {
@@ -282,6 +285,12 @@ if (!gotTheLock) {
       session.defaultSession.setUserAgent(userAgent);
       log.info('设置默认 session User-Agent: ' + userAgent);
     }
+    
+    // 忽略证书错误
+    session.defaultSession.setCertificateVerifyProc((request, callback) => {
+      log.info('忽略证书验证: ' + request.url);
+      callback(0); // 0 表示允许无效证书
+    });
     
     createWindow();
     
@@ -933,6 +942,14 @@ ipcMain.handle('get-current-language', () => {
 });
 
 // 导出函数
+/**
+ * 编辑配置
+ */
+// function editConfig() {
+//   if (mainWindow) {
+//     mainWindow.webContents.send('edit-config');
+//     log.info('发送编辑配置消息');
+//   }
 module.exports = {
   openLogViewer,
   showSettings
